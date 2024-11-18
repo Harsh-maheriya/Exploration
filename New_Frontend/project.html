@@ -1,168 +1,296 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Weather Information</title>
+    <title>JP Learning - Application</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script>
+        let lightStatus = false;
+
+        setEvents = async (type, value, created) => {
+            if (type === 'Temperature') {
+                let el = document.getElementById('tempValue');
+                el.innerHTML = value + ' °C'; // Update temperature value
+                el = document.getElementById('temp-time');
+                el.innerHTML = 'Updated Time: ' + created; // Update time
+            } else if (type === 'Humidity') {
+                let el = document.getElementById('humidityValue');
+                el.innerHTML = value + ' %'; // Update humidity value
+                el = document.getElementById('humd-time');
+                el.innerHTML = 'Updated Time: ' + created; // Update time
+            } else if (type === 'AirQuality') {
+                let el = document.getElementById('airQualityValue');
+                el.innerHTML = value + ' AQI'; // Update air quality value
+            } else if (type === 'Pressure') {
+                let el = document.getElementById('pressureValue');
+                el.innerHTML = value + ' hPa'; // Update pressure value
+            } else if (type === 'Voltage') {
+                let el = document.getElementById('voltageValue');
+                el.innerHTML = value + ' V'; // Update voltage value
+            } else if (type === 'Current') {
+                let el = document.getElementById('currentValue');
+                el.innerHTML = value + ' A'; // Update current value
+            } else if (type === 'Light') {
+                const status = document.getElementById('status');
+                let el = document.getElementById('status-time');
+                el.innerHTML = 'Updated Time: ' + created;
+                if (value == '0') {
+                    document.getElementById('bulb').src = './bulb-off.png';
+                    status.innerText = "OFF";
+                    lightStatus = false;
+                } else if (value == '1') {
+                    document.getElementById('bulb').src = './bulb-on.png';
+                    status.innerText = "ON";
+                    lightStatus = true;
+                }
+            }
+        }
+
+        handleData = async (events) => {
+            events.forEach(event => {
+                console.log('event:', event);
+
+                let type = event.type;
+                let value = event.value;
+                let created = event.created;
+
+                console.log('type:', type);
+                console.log('value:', value);
+                console.log('created:', created);
+
+                setEvents(type, value, created);
+            });
+        }
+
+        getData = async () => {
+            console.log('HTTP GET with Axios');
+            axios.get("http://localhost:6969/events")
+                .then(response => {
+                    console.log('response:', response);
+                    let events = response.data;
+                    console.log('events:', events);
+
+                    handleData(events);
+                })
+                .catch(error => {
+                    if (error.response) {
+                        console.log(error.response.status);
+                    } else {
+                        console.log(error.message);
+                    }
+                });
+        }
+
+        // Get last events of all sensors
+        getData();
+
+        // Socket.IO
+        let socket = io('ws://localhost:8080');
+        let el;
+
+        socket.on('time', (timeString) => {
+            let el = document.getElementById('server-time');
+            el.innerHTML = 'Server time: ' + timeString;
+        });
+
+        socket.on('JPLearning_SensorData', (event) => {
+            console.log('Sensor event: ', event);
+
+            let type = event.type;
+            let value = event.value;
+            let created = event.created;
+
+            console.log('type:', type);
+            console.log('value:', value);
+            console.log('created:', created);
+
+            setEvents(type, value, created);
+        });
+
+        changeStatus = async () => {
+            console.log('changeStatus() called');
+            if (!lightStatus) {
+                console.log('Light ON');
+                socket.emit('JPLearning_CommandRequest', JSON.parse('{"device_id":"Device0001", "type":"Light", "value":1}'));
+            } else {
+                console.log('Light OFF');
+                socket.emit('JPLearning_CommandRequest', JSON.parse('{"device_id":"Device0001", "type":"Light", "value":0}'));
+            }
+        }
+    </script>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            background-color: rgb(83, 158, 208);
             margin: 0;
             padding: 0;
+            font-family: Arial, sans-serif;
+            background-color: #2c2c2c;
+            /* Blackish-gray background */
+            color: white;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
-            color: #333;
+            width: 100vw;
         }
 
         .container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            /* 3 columns */
+            grid-template-rows: repeat(2, 1fr);
+            /* 2 rows */
+            gap: 5px;
+            /* Minimal padding between boxes */
+            width: 231.12mm;
+            /* Set width to 1.5x of the original width */
+            height: 128.88mm;
+            /* Set height to 1.5x of the original height */
+            background-color: #3c3c3c;
+            /* Darker container background */
+            box-sizing: border-box;
+            /* Include padding in dimensions */
+            padding: 10px;
+            /* Padding around the container */
+            border-radius: 10px;
+            /* Rounded corners */
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            /* Subtle shadow */
+        }
+
+        .box {
             display: flex;
             flex-direction: column;
+            justify-content: center;
             align-items: center;
-            justify-content: center;
-            gap: 20px;
-            background: rgba(255, 255, 255, 0.95);
-            padding: 30px;
-            border-radius: 20px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-            max-width: 600px;
-            width: 100%;
-            box-sizing: border-box;
-        }
-
-        .row {
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            width: 100%;
-        }
-
-        .section {
-            background: rgba(0, 0, 0, 0.8);
             color: white;
-            padding: 20px;
+            font-size: 1rem;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            box-sizing: border-box;
+            /* Include padding in dimensions */
+            padding: 15px;
+            /* Padding inside the box */
+            width: 100%;
+            /* Make the box fit its grid area */
+            height: 100%;
+            /* Make the box fit its grid area */
+            overflow: hidden;
+            /* Hide overflow if content is too large */
             border-radius: 10px;
-            flex: 1;
+            /* Rounded corners */
             text-align: center;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-            width: calc(50% - 20px);
+            /* Center-align text */
         }
 
-        .section h2 {
-            margin: 0;
-            font-size: 1.5em;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 10px;
+        .box i {
+            font-size: 2.5rem;
+            /* Larger icons for better visibility */
+            margin-bottom: 10px;
+            /* Space between icon and text */
         }
 
-        .section p {
-            margin: 10px 0 0;
-            font-size: 1.2em;
+        .box .value {
+            font-size: 1.5rem;
+            /* Larger value text for better visibility */
+            margin-bottom: 5px;
         }
 
-        .icon {
-            width: 30px;
-            height: 30px;
+        .box .label {
+            font-size: 1rem;
+            /* Slightly smaller label text */
+            margin-bottom: 5px;
         }
 
-        .error {
-            color: red;
-            font-size: 1em;
-            margin-top: 20px;
-            text-align: center;
+        .box .trend,
+        .box .additional-info {
+            font-size: 0.9rem;
+        }
+
+        .box.temperature {
+            background-color: #ff5733;
+            /* Red-orange */
+        }
+
+        .box.humidity {
+            background-color: #33c1ff;
+            /* Light blue */
+        }
+
+        .box.air-quality {
+            background-color: #4caf50;
+            /* Green */
+        }
+
+        .box.pressure {
+            background-color: #f39c12;
+            /* Orange */
+        }
+
+        .box.voltage {
+            background-color: #9b59b6;
+            /* Purple */
+        }
+
+        .box.current {
+            background-color: #e74c3c;
+            /* Red */
+        }
+
+        @media (max-width: 768px) {
+            .box {
+                font-size: 0.9rem;
+                /* Adjust font size for smaller screens */
+            }
+        }
+
+        @media (max-width: 500px) {
+            .box {
+                font-size: 0.8rem;
+                /* Adjust font size for very small screens */
+            }
         }
     </style>
-    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 </head>
+
 <body>
     <div class="container">
-        <div class="row">
-            <div class="section">
-                <h2>
-                    <img src="https://img.icons8.com/fluency/48/000000/temperature.png" alt="Temperature Icon" class="icon"> 
-                    Temperature
-                </h2>
-                <p id="temperature">-- °C</p>
-            </div>
-            <div class="section">
-                <h2>
-                    <img src="https://img.icons8.com/fluency/48/000000/hygrometer.png" alt="Humidity Icon" class="icon"> 
-                    Humidity
-                </h2>
-                <p id="humidity">-- %</p>
-            </div>
+        <div class="box temperature">
+            <i class="fas fa-temperature-high"></i>
+            <div class="value" id="tempValue">--</div> <!-- This will be updated with real-time data -->
+            <div class="label">Temperature</div>
+            <div class="trend">Max: 40°C</div>
+            <div class="additional-info">Min: -10°C</div>
+            <div class="time" id="temp-time">Updated Time: --</div> <!-- This will be updated with real-time data -->
         </div>
-        <div class="row">
-            <div class="section">
-                <h2>
-                    <img src="https://img.icons8.com/fluency/48/000000/air-quality.png" alt="Air Quality Icon" class="icon"> 
-                    Air Quality
-                </h2>
-                <p id="airQuality">--</p>
-            </div>
-            <div class="section">
-                <h2>
-                    <img src="https://img.icons8.com/ios-filled/50/ffffff/pressure.png" alt="Pressure Icon" class="icon"> 
-                    Pressure
-                </h2>
-                <p id="pressure">-- hPa</p>
-            </div>
+        <div class="box humidity">
+            <i class="fas fa-tint"></i>
+            <div class="value" id="humidityValue">--</div> <!-- This will be updated with real-time data -->
+            <div class="label">Humidity</div>
+            <div class="trend">Max: 100%</div>
+            <div class="additional-info">Min: 0%</div>
+            <div class="time" id="humd-time">Updated Time: --</div> <!-- This will be updated with real-time data -->
         </div>
-        <div class="row">
-            <div class="section">
-                <h2>
-                    <img src="https://img.icons8.com/fluency/48/000000/electricity.png" alt="Current Sensor Icon" class="icon">
-                    Current
-                </h2>
-                <p id="current">-- A</p>
-            </div>
+        <div class="box air-quality">
+            <i class="fas fa-smog"></i>
+            <div class="value" id="airQualityValue">--</div> <!-- This will be updated with real-time data -->
+            <div class="label">Air Quality</div>
         </div>
-        <div id="error" class="error"></div>
+        <div class="box pressure">
+            <i class="fas fa-tachometer-alt"></i>
+            <div class="value" id="pressureValue">--</div> <!-- This will be updated with real-time data -->
+            <div class="label">Pressure</div>
+        </div>
+        <div class="box voltage">
+            <i class="fas fa-bolt"></i>
+            <div class="value" id="voltageValue">--</div> <!-- This will be updated with real-time data -->
+            <div class="label">Voltage</div>
+        </div>
+        <div class="box current">
+            <i class="fas fa-plug"></i>
+            <div class="value" id="currentValue">--</div> <!-- This will be updated with real-time data -->
+            <div class="label">Current</div>
+        </div>
     </div>
-
-    <script>
-        // Replace with your MQTT broker address and topic
-        const mqttBroker = 'wss://your-mqtt-broker:port'; // Use 'wss' for secure connection
-        const topic = 'sensor/data';
-
-        // Connect to the MQTT broker
-        const client = mqtt.connect(mqttBroker);
-
-        client.on('connect', () => {
-            console.log('Connected to MQTT broker');
-            document.getElementById('error').textContent = ''; // Clear any previous error
-            client.subscribe(topic, (err) => {
-                if (!err) {
-                    console.log('Subscribed to topic', topic);
-                } else {
-                    console.error('Subscription error:', err);
-                    document.getElementById('error').textContent = 'Failed to subscribe to topic';
-                }
-            });
-        });
-
-        client.on('message', (topic, message) => {
-            try {
-                const data = JSON.parse(message.toString());
-                document.getElementById('temperature').textContent = data.temperature + ' °C';
-                document.getElementById('humidity').textContent = data.humidity + ' %';
-                document.getElementById('airQuality').textContent = data.airQuality;
-                document.getElementById('pressure').textContent = data.pressure + ' hPa';
-                document.getElementById('current').textContent = data.current + ' A';
-            } catch (err) {
-                console.error('Message handling error:', err);
-                document.getElementById('error').textContent = 'Error processing message data';
-            }
-        });
-
-        client.on('error', (err) => {
-            console.error('MQTT Error:', err);
-            document.getElementById('error').textContent = 'MQTT connection error';
-        });
-    </script>
 </body>
+
 </html>
